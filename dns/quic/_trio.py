@@ -120,6 +120,7 @@ class TrioQuicConnection(AsyncQuicConnection):
                 event, aioquic.quic.events.ConnectionTerminated
             ) or isinstance(event, aioquic.quic.events.StreamReset):
                 self._done = True
+                self._error_code = event.error_code
                 self._socket.close()
             count += 1
             if count > 10:
@@ -147,7 +148,7 @@ class TrioQuicConnection(AsyncQuicConnection):
         with context:
             await self._handshake_complete.wait()
             if self._done:
-                raise UnexpectedEOF
+                raise UnexpectedEOF(self._error_code)
             stream_id = self._connection.get_next_available_stream_id(False)
             stream = TrioQuicStream(self, stream_id)
             self._streams[stream_id] = stream

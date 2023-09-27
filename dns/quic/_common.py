@@ -14,8 +14,8 @@ QUIC_MAX_DATAGRAM = 2048
 
 
 class UnexpectedEOF(Exception):
-    pass
-
+    def __init__(error_code):
+        self.error_code = error_code
 
 class Buffer:
     def __init__(self):
@@ -33,7 +33,7 @@ class Buffer:
         if len(self._buffer) >= amount:
             return True
         if self._seen_end:
-            raise UnexpectedEOF
+            raise UnexpectedEOF(None)
         return False
 
     def seen_end(self):

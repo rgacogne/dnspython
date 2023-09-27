@@ -151,6 +151,7 @@ class AsyncioQuicConnection(AsyncQuicConnection):
                 event, aioquic.quic.events.ConnectionTerminated
             ) or isinstance(event, aioquic.quic.events.StreamReset):
                 self._done = True
+                self._error_code = event.error_code
                 self._receiver_task.cancel()
             count += 1
             if count > 10:
@@ -175,7 +176,7 @@ class AsyncioQuicConnection(AsyncQuicConnection):
         except TimeoutError:
             raise dns.exception.Timeout
         if self._done:
-            raise UnexpectedEOF
+            raise UnexpectedEOF(self._error_code)
         stream_id = self._connection.get_next_available_stream_id(False)
         stream = AsyncioQuicStream(self, stream_id)
         self._streams[stream_id] = stream

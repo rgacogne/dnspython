@@ -33,11 +33,14 @@ class SyncQuicStream(BaseQuicStream):
         super().__init__(connection, stream_id)
         self._wake_up = threading.Condition()
         self._lock = threading.Lock()
+        self._error_code = None
 
     def wait_for(self, amount, expiration):
         while True:
             timeout = self._timeout_from_expiration(expiration)
             with self._lock:
+                if self._done:
+                    raise UnexpectedEOF(self._error_code)
                 if self._buffer.have(amount):
                     return
                 self._expecting = amount
@@ -159,6 +162,7 @@ class SyncQuicConnection(BaseQuicConnection):
                 event, aioquic.quic.events.ConnectionTerminated
             ) or isinstance(event, aioquic.quic.events.StreamReset):
                 with self._lock:
+                    self._error_code = event.error_code
                     self._done = True
 
     def write(self, stream, data, is_end=False):
@@ -177,7 +181,7 @@ class SyncQuicConnection(BaseQuicConnection):
             raise dns.exception.Timeout
         with self._lock:
             if self._done:
-                raise UnexpectedEOF
+                raise UnexpectedEOF(self._error_code)
             stream_id = self._connection.get_next_available_stream_id(False)
             stream = SyncQuicStream(self, stream_id)
             self._streams[stream_id] = stream
